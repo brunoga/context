@@ -1,3 +1,6 @@
+// Package context implements a drop-in replacement for the standard library
+// context package. It has all the features of the standard library version and
+// adds support for waiting on children contexts.
 package context
 
 import (
@@ -6,6 +9,10 @@ import (
 	"time"
 )
 
+// A Context carries a deadline, a cancelation signal, and other values across
+// API boundaries. It also supports waiting on children contexts.
+//
+// Context's methods may be called by multiple goroutines simultaneously.
 type Context interface {
 	context.Context
 
