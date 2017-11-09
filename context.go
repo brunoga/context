@@ -58,6 +58,20 @@ func (c *ctxImpl) wg() *sync.WaitGroup {
 	return &c.childrenWg
 }
 
+func (c *ctxImpl) Err() error {
+	switch c.Context.Err() {
+	case context.Canceled:
+		return Canceled
+	case context.DeadlineExceeded:
+		return DeadlineExceeded
+	}
+
+	// Got an unexpected error. Just return it.
+	//
+	// TODO(bga): Maybe log something here?
+	return c.Context.Err()
+}
+
 type emptyCtx ctxImpl
 
 func (e *emptyCtx) Finished() {
