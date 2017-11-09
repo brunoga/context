@@ -1,6 +1,9 @@
 // Package context implements a drop-in replacement for the standard library
-// context package. It has all the features of the standard library version and
-// adds support for waiting on children contexts.
+// context package. It has all the features of the standard library version plus
+// support for waiting on derived contexts (including supporting
+// functions/methods).
+//
+// See https://golang.org/pkg/context.
 package context
 
 import (
@@ -9,14 +12,20 @@ import (
 	"time"
 )
 
-// A Context carries a deadline, a cancelation signal, and other values across
-// API boundaries. It also supports waiting on children contexts.
+// Context behaves exactly like a standard library Context but also includes
+// support for waiting on derived (child) Contexts.
 //
-// Context's methods may be called by multiple goroutines simultaneously.
+// See https://golang.org/pkg/context/#Context.
 type Context interface {
 	context.Context
 
+	// Finished reports back to the parent Context that the work associated
+	// with this Context has finished. This must be explicitly called when
+	// using the waiting feature.
 	Finished()
+
+	// Wait waits on all immediate children to finish their work. It blocks
+	// until all children report that their work is finished.
 	Wait()
 
 	context() context.Context
@@ -123,7 +132,7 @@ func WithStandardContext(parent context.Context) Context {
 	}
 }
 
-func CreateChild(parent Context) Context {
+func WithContext(parent Context) Context {
 	parent.wg().Add(1)
 	return parent
 }
