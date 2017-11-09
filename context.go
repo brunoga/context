@@ -116,3 +116,11 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 		sync.WaitGroup{},
 	}, CancelFunc(c)
 }
+
+func WithContext(parent context.Context) Context {
+	return &ctxImpl{
+		parent,
+		nil,
+		sync.WaitGroup{},
+	}
+}
