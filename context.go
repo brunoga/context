@@ -143,30 +143,16 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 	}, CancelFunc(c)
 }
 
-// WithStandardContext returns the parent standard library context.Context
-// Wrapped in a Cntext instance. The returned Context can then make use of the
-// waiting functionality.
-//
-// Everything set in the parent Context (deadlines, cancel function, values)
-// will be present in the returne one.
-func WithStandardContext(parent context.Context) Context {
-	return &ctxImpl{
-		parent,
-		nil,
+// Child returns a new Context that is a child of the given parent. The returned
+// context is usually passed to some goroutine that we want to wait on.
+func Child(parent Context) Context {
+	child := &ctxImpl{
+		parent.context(),
+		parent.wg(),
 		sync.WaitGroup{},
 	}
-}
 
-// Child returns the parent context with its internal wait group counter
-// incremented. This can be used to simply pass the same context to different
-// goroutines without having to create actual new Context instances.
-//
-// For general Context purposes, the returned Context is, effectivelly, the
-// parent context itself.
-//
-// For waiting purposes, the returned context can be considered a derived
-// (child) one).
-func Child(parent Context) Context {
 	parent.wg().Add(1)
-	return parent
+
+	return child
 }

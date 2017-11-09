@@ -8,16 +8,13 @@ import (
 func TestWait_OneChild(t *testing.T) {
 	root := Background()
 
-	child, cancel := WithCancel(root)
-	defer cancel()
-
 	value := 0
 
 	go func(ctx Context) {
 		time.Sleep(1 * time.Millisecond)
 		value = 1
 		ctx.Finished()
-	}(child)
+	}(Child(root))
 
 	root.Wait()
 
@@ -29,34 +26,25 @@ func TestWait_OneChild(t *testing.T) {
 func TestWait_MultipleChildren(t *testing.T) {
 	root := Background()
 
-	child1, cancel1 := WithCancel(root)
-	defer cancel1()
-
-	child2, cancel2 := WithCancel(root)
-	defer cancel2()
-
-	child3, cancel3 := WithCancel(root)
-	defer cancel3()
-
 	value := 0
 
 	go func(ctx Context) {
 		time.Sleep(1 * time.Millisecond)
 		value = 1
 		ctx.Finished()
-	}(child1)
+	}(Child(root))
 
 	go func(ctx Context) {
 		time.Sleep(2 * time.Millisecond)
 		value = 2
 		ctx.Finished()
-	}(child2)
+	}(Child(root))
 
 	go func(ctx Context) {
 		time.Sleep(3 * time.Millisecond)
 		value = 3
 		ctx.Finished()
-	}(child3)
+	}(Child(root))
 
 	root.Wait()
 
