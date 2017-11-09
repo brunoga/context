@@ -78,28 +78,28 @@ func TODO() Context {
 
 type CancelFunc context.CancelFunc
 
-func WithCancel(parent Context) (ctx Context, cancel CancelFunc) {
-	cCtx, c := context.WithCancel(parent.context())
+func WithCancel(parent Context) (Context, CancelFunc) {
+	ctx, c := context.WithCancel(parent.context())
 	return &ctxImpl{
-		cCtx,
+		ctx,
 		parent.wg(),
 		sync.WaitGroup{},
 	}, CancelFunc(c)
 }
 
 func WithDeadline(parent Context, deadline time.Time) (Context, CancelFunc) {
-	dCtx, c := context.WithDeadline(parent.context(), deadline)
+	ctx, c := context.WithDeadline(parent.context(), deadline)
 	return &ctxImpl{
-		dCtx,
+		ctx,
 		parent.wg(),
 		sync.WaitGroup{},
 	}, CancelFunc(c)
 }
 
 func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
-	dCtx, c := context.WithTimeout(parent.context(), timeout)
+	ctx, c := context.WithTimeout(parent.context(), timeout)
 	return &ctxImpl{
-		dCtx,
+		ctx,
 		parent.wg(),
 		sync.WaitGroup{},
 	}, CancelFunc(c)
