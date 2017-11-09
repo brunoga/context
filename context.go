@@ -13,7 +13,8 @@ type Context interface {
 	Wait()
 
 	context() context.Context
-	wg() *sync.WaitGroup
+	parentWg() *sync.WaitGroup
+	childrenWg() *sync.WaitGroup
 }
 
 var Canceled = context.Canceled
@@ -22,24 +23,28 @@ var DeadlineExceeded = context.DeadlineExceeded
 type ctxImpl struct {
 	context.Context
 
-	parentWg   *sync.WaitGroup
-	childrenWg sync.WaitGroup
+	pWg *sync.WaitGroup
+	cWg sync.WaitGroup
 }
 
 func (c *ctxImpl) Finished() {
-	c.parentWg.Done()
+	c.pWg.Done()
 }
 
 func (c *ctxImpl) Wait() {
-	c.childrenWg.Wait()
+	c.cWg.Wait()
 }
 
 func (c *ctxImpl) context() context.Context {
 	return c.Context
 }
 
-func (c *ctxImpl) wg() *sync.WaitGroup {
-	return &c.childrenWg
+func (c *ctxImpl) parentWg() *sync.WaitGroup {
+	return c.pWg
+}
+
+func (c *ctxImpl) childrenWg() *sync.WaitGroup {
+	return &c.cWg
 }
 
 type emptyCtx ctxImpl
@@ -49,15 +54,19 @@ func (e *emptyCtx) Finished() {
 }
 
 func (e *emptyCtx) Wait() {
-	e.childrenWg.Wait()
+	e.cWg.Wait()
 }
 
 func (e *emptyCtx) context() context.Context {
 	return e.Context
 }
 
-func (e *emptyCtx) wg() *sync.WaitGroup {
-	return &e.childrenWg
+func (c *emptyCtx) parentWg() *sync.WaitGroup {
+	return nil
+}
+
+func (e *emptyCtx) childrenWg() *sync.WaitGroup {
+	return &e.cWg
 }
 
 func Background() Context {
@@ -79,31 +88,31 @@ func TODO() Context {
 type CancelFunc context.CancelFunc
 
 func WithCancel(parent Context) (Context, CancelFunc) {
-	parent.wg().Add(1)
+	parent.parentWg().Add(1)
 	ctx, c := context.WithCancel(parent.context())
 	return &ctxImpl{
 		ctx,
-		parent.wg(),
+		parent.childrenWg(),
 		sync.WaitGroup{},
 	}, CancelFunc(c)
 }
 
 func WithDeadline(parent Context, deadline time.Time) (Context, CancelFunc) {
-	parent.wg().Add(1)
+	parent.parentWg().Add(1)
 	ctx, c := context.WithDeadline(parent.context(), deadline)
 	return &ctxImpl{
 		ctx,
-		parent.wg(),
+		parent.childrenWg(),
 		sync.WaitGroup{},
 	}, CancelFunc(c)
 }
 
 func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
-	parent.wg().Add(1)
+	parent.parentWg().Add(1)
 	ctx, c := context.WithTimeout(parent.context(), timeout)
 	return &ctxImpl{
 		ctx,
-		parent.wg(),
+		parent.childrenWg(),
 		sync.WaitGroup{},
 	}, CancelFunc(c)
 }
