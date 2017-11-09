@@ -117,7 +117,6 @@ func TODO() Context {
 type CancelFunc context.CancelFunc
 
 func WithCancel(parent Context) (Context, CancelFunc) {
-	parent.wg().Add(1)
 	ctx, c := context.WithCancel(parent.context())
 	return &ctxImpl{
 		ctx,
@@ -127,7 +126,6 @@ func WithCancel(parent Context) (Context, CancelFunc) {
 }
 
 func WithDeadline(parent Context, deadline time.Time) (Context, CancelFunc) {
-	parent.wg().Add(1)
 	ctx, c := context.WithDeadline(parent.context(), deadline)
 	return &ctxImpl{
 		ctx,
@@ -137,7 +135,6 @@ func WithDeadline(parent Context, deadline time.Time) (Context, CancelFunc) {
 }
 
 func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
-	parent.wg().Add(1)
 	ctx, c := context.WithTimeout(parent.context(), timeout)
 	return &ctxImpl{
 		ctx,
@@ -160,16 +157,16 @@ func WithStandardContext(parent context.Context) Context {
 	}
 }
 
-// WithContext returns the parent context with its internal wait group counter
+// Child returns the parent context with its internal wait group counter
 // incremented. This can be used to simply pass the same context to different
-// goroputines without having to create actual new Context instances.
+// goroutines without having to create actual new Context instances.
 //
 // For general Context purposes, the returned Context is, effectivelly, the
 // parent context itself.
 //
 // For waiting purposes, the returned context can be considered a derived
 // (child) one).
-func WithContext(parent Context) Context {
+func Child(parent Context) Context {
 	parent.wg().Add(1)
 	return parent
 }
