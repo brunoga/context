@@ -32,7 +32,15 @@ type Context interface {
 	wg() *sync.WaitGroup
 }
 
+// Canceled just exposes the standard library context.Canceled error.
+//
+// See https://golang.org/pkg/context/#pkg-variables.
 var Canceled = context.Canceled
+
+// DeadlineExceeded just exposes the standard library context.DeadlineExceeded
+// error.
+//
+// See https://golang.org/pkg/context/#pkg-variables.
 var DeadlineExceeded = context.DeadlineExceeded
 
 type ctxImpl struct {
@@ -138,6 +146,12 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 	}, CancelFunc(c)
 }
 
+// WithStandardContext returns the parent standard library context.Context
+// Wrapped in a Cntext instance. The returned Context can then make use of the
+// waiting functionality.
+//
+// Everything set in the parent Context (deadlines, cancel function, values)
+// will be present in the returne one.
 func WithStandardContext(parent context.Context) Context {
 	return &ctxImpl{
 		parent,
@@ -146,6 +160,15 @@ func WithStandardContext(parent context.Context) Context {
 	}
 }
 
+// WithContext returns the parent context with its internal wait group counter
+// incremented. This can be used to simply pass the same context to different
+// goroputines without having to create actual new Context instances.
+//
+// For general Context purposes, the returned Context is, effectivelly, the
+// parent context itself.
+//
+// For waiting purposes, the returned context can be considered a derived
+// (child) one).
 func WithContext(parent Context) Context {
 	parent.wg().Add(1)
 	return parent
