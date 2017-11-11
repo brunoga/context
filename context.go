@@ -147,6 +147,10 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 // number of times that EnableWait() is called), any caller waiting on the
 // parent context will unblock.
 func EnableWait(ctx Context) Context {
+	if ctx.pWg() == nil {
+		panic("tried to call EnableWait() on a root context")
+	}
+
 	ctx.pWg().Add(1)
 
 	return ctx
