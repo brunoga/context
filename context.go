@@ -4,12 +4,31 @@
 // functions/methods).
 //
 // See https://golang.org/pkg/context.
+//
+// Example usage:
+//
+// root := context.Background()
+//
+// workersCtx, cancel := context.WithCancel(root)
+// defer cancel()
+//
+// for i:=0; i < numWorkers; i++ {
+//	   go startWorker(context.EnableWait(workersCtx))
+// }
+//
+// root.WaitForChildren()
 package context
 
 import (
 	"context"
 	"sync"
 	"time"
+)
+
+var (
+	// Errors.
+	Canceled         = context.Canceled
+	DeadlineExceeded = context.DeadlineExceeded
 )
 
 // Context behaves exactly like a standard library Context but also includes
@@ -26,22 +45,13 @@ type Context interface {
 
 	// Wait waits on all immediate children to finish their work. It blocks
 	// until all children report that their work is finished.
-	Wait()
+	WaitForChildren()
 
 	context() context.Context
-	wg() *sync.WaitGroup
+
+	pWg() *sync.WaitGroup
+	cWg() *sync.WaitGroup
 }
-
-// Canceled just exposes the standard library context.Canceled error.
-//
-// See https://golang.org/pkg/context/#pkg-variables.
-var Canceled = context.Canceled
-
-// DeadlineExceeded just exposes the standard library context.DeadlineExceeded
-// error.
-//
-// See https://golang.org/pkg/context/#pkg-variables.
-var DeadlineExceeded = context.DeadlineExceeded
 
 type ctxImpl struct {
 	context.Context
@@ -51,10 +61,13 @@ type ctxImpl struct {
 }
 
 func (c *ctxImpl) Finished() {
-	c.parentWg.Done()
+	if c.parentWg != nil {
+		// Only non-root contexts have parents.
+		c.parentWg.Done()
+	}
 }
 
-func (c *ctxImpl) Wait() {
+func (c *ctxImpl) WaitForChildren() {
 	c.childrenWg.Wait()
 }
 
@@ -62,7 +75,11 @@ func (c *ctxImpl) context() context.Context {
 	return c.Context
 }
 
-func (c *ctxImpl) wg() *sync.WaitGroup {
+func (c *ctxImpl) pWg() *sync.WaitGroup {
+	return c.parentWg
+}
+
+func (c *ctxImpl) cWg() *sync.WaitGroup {
 	return &c.childrenWg
 }
 
@@ -80,26 +97,8 @@ func (c *ctxImpl) Err() error {
 	return c.Context.Err()
 }
 
-type emptyCtx ctxImpl
-
-func (e *emptyCtx) Finished() {
-	return
-}
-
-func (e *emptyCtx) Wait() {
-	e.childrenWg.Wait()
-}
-
-func (e *emptyCtx) context() context.Context {
-	return e.Context
-}
-
-func (e *emptyCtx) wg() *sync.WaitGroup {
-	return &e.childrenWg
-}
-
 func Background() Context {
-	return &emptyCtx{
+	return &ctxImpl{
 		context.Background(),
 		nil,
 		sync.WaitGroup{},
@@ -107,7 +106,7 @@ func Background() Context {
 }
 
 func TODO() Context {
-	return &emptyCtx{
+	return &ctxImpl{
 		context.TODO(),
 		nil,
 		sync.WaitGroup{},
@@ -120,7 +119,7 @@ func WithCancel(parent Context) (Context, CancelFunc) {
 	ctx, c := context.WithCancel(parent.context())
 	return &ctxImpl{
 		ctx,
-		parent.wg(),
+		parent.cWg(),
 		sync.WaitGroup{},
 	}, CancelFunc(c)
 }
@@ -129,7 +128,7 @@ func WithDeadline(parent Context, deadline time.Time) (Context, CancelFunc) {
 	ctx, c := context.WithDeadline(parent.context(), deadline)
 	return &ctxImpl{
 		ctx,
-		parent.wg(),
+		parent.cWg(),
 		sync.WaitGroup{},
 	}, CancelFunc(c)
 }
@@ -138,21 +137,17 @@ func WithTimeout(parent Context, timeout time.Duration) (Context, CancelFunc) {
 	ctx, c := context.WithTimeout(parent.context(), timeout)
 	return &ctxImpl{
 		ctx,
-		parent.wg(),
+		parent.cWg(),
 		sync.WaitGroup{},
 	}, CancelFunc(c)
 }
 
-// Child returns a new Context that is a child of the given parent. The returned
-// context is usually passed to some goroutine that we want to wait on.
-func Child(parent Context) Context {
-	child := &ctxImpl{
-		parent.context(),
-		parent.wg(),
-		sync.WaitGroup{},
-	}
+// EnableWait enables waiting on this context completion. When the work
+// associated with this context finishes (ctx.Finished() is called the same
+// number of times that EnableWait() is called), any caller waiting on the
+// parent context will unblock.
+func EnableWait(ctx Context) Context {
+	ctx.pWg().Add(1)
 
-	parent.wg().Add(1)
-
-	return child
+	return ctx
 }

@@ -6,7 +6,10 @@ import (
 )
 
 func TestWait_OneChild(t *testing.T) {
-	root := Background()
+	parent := Background()
+
+	ctx, cancel := WithCancel(parent)
+	defer cancel()
 
 	value := 0
 
@@ -14,9 +17,9 @@ func TestWait_OneChild(t *testing.T) {
 		time.Sleep(1 * time.Millisecond)
 		value = 1
 		ctx.Finished()
-	}(Child(root))
+	}(EnableWait(ctx))
 
-	root.Wait()
+	parent.WaitForChildren()
 
 	if value != 1 {
 		t.Errorf("Expected value to be 1. Got %d.", value)
@@ -24,7 +27,10 @@ func TestWait_OneChild(t *testing.T) {
 }
 
 func TestWait_MultipleChildren(t *testing.T) {
-	root := Background()
+	parent := Background()
+
+	ctx, cancel := WithCancel(parent)
+	defer cancel()
 
 	value := 0
 
@@ -32,21 +38,21 @@ func TestWait_MultipleChildren(t *testing.T) {
 		time.Sleep(1 * time.Millisecond)
 		value = 1
 		ctx.Finished()
-	}(Child(root))
+	}(EnableWait(ctx))
 
 	go func(ctx Context) {
 		time.Sleep(2 * time.Millisecond)
 		value = 2
 		ctx.Finished()
-	}(Child(root))
+	}(EnableWait(ctx))
 
 	go func(ctx Context) {
 		time.Sleep(3 * time.Millisecond)
 		value = 3
 		ctx.Finished()
-	}(Child(root))
+	}(EnableWait(ctx))
 
-	root.Wait()
+	parent.WaitForChildren()
 
 	if value != 3 {
 		t.Errorf("Expected value to be 3. Got %d.", value)
